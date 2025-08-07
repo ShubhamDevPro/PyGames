@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game - Web Version</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        #gameCanvas {
+            border: 2px solid #333;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .controls p {
+            margin: 5px 0;
+            color: #666;
+        }
+        
+        .game-info {
+            margin-top: 10px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .info-item {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        button {
+            margin: 10px 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Snake Game - Web Version</h1>
+    
+    <canvas id="gameCanvas" width="900" height="500"></canvas>
+    
+    <div class="game-info">
+        <div class="info-item">Score: <span id="score">0</span></div>
+        <div class="info-item">Game Status: <span id="gameStatus">Ready</span></div>
+    </div>
+    
+    <div class="controls">
+        <button onclick="startGame()" id="startBtn">Start Game</button>
+        <button onclick="pauseGame()" id="pauseBtn" disabled>Pause</button>
+        <button onclick="resetGame()" id="resetBtn">Reset</button>
+        
+        <p><strong>Controls:</strong></p>
+        <p>Use Arrow Keys to move the snake</p>
+        <p>↑ ↓ ← → or W A S D</p>
+    </div>
+
+    <script>
+        // Game canvas and context
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game variables (matching the original Python code)
+        const SCREEN_WIDTH = 900;
+        const SCREEN_HEIGHT = 500;
+        const WHITE = '#FFFFFF';
+        const RED = '#FF0000';
+        const BLACK = '#000000';
+        const GREEN = '#00FF00';
+
+        let gameExit = false;
+        let gameOver = false;
+        let gamePaused = false;
+        let snake_x = 45;
+        let snake_y = 55;
+        let velocity_x = 0;
+        let velocity_y = 0;
+        const snake_size = 10;
+        const fps = 30;
+        let score = 0;
+
+        // Food variables
+        let food_x = Math.floor(Math.random() * (SCREEN_WIDTH - snake_size));
+        let food_y = Math.floor(Math.random() * (SCREEN_HEIGHT - snake_size));
+
+        // Snake body (for future enhancement)
+        let snake_list = [];
+        let snake_length = 1;
+
+        // Game loop variables
+        let gameInterval;
+
+        // UI elements
+        const scoreElement = document.getElementById('score');
+        const gameStatusElement = document.getElementById('gameStatus');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+
+        // Initialize the game
+        function initGame() {
+            // Clear canvas
+            ctx.fillStyle = WHITE;
+            ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+            
+            // Draw initial snake
+            ctx.fillStyle = BLACK;
+            ctx.fillRect(snake_x, snake_y, snake_size, snake_size);
+            
+            // Draw food
+            ctx.fillStyle = RED;
+            ctx.fillRect(food_x, food_y, snake_size, snake_size);
+            
+            updateUI();
+        }
+
+        // Main game loop
+        function gameLoop() {
+            if (gamePaused || gameOver) return;
+
+            // Move snake
+            snake_x += velocity_x;
+            snake_y += velocity_y;
+
+            // Check boundaries
+            if (snake_x < 0 || snake_x >= SCREEN_WIDTH || snake_y < 0 || snake_y >= SCREEN_HEIGHT) {
+                gameOver = true;
+                gameStatusElement.textContent = 'Game Over!';
+                startBtn.disabled = false;
+                pauseBtn.disabled = true;
+                return;
+            }
+
+            // Check food collision
+            if (Math.abs(snake_x - food_x) < snake_size && Math.abs(snake_y - food_y) < snake_size) {
+                score += 10;
+                // Generate new food position
+                food_x = Math.floor(Math.random() * (SCREEN_WIDTH - snake_size));
+                food_y = Math.floor(Math.random() * (SCREEN_HEIGHT - snake_size));
+                updateUI();
+            }
+
+            // Clear canvas
+            ctx.fillStyle = WHITE;
+            ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+            // Draw snake
+            ctx.fillStyle = BLACK;
+            ctx.fillRect(snake_x, snake_y, snake_size, snake_size);
+
+            // Draw food
+            ctx.fillStyle = RED;
+            ctx.fillRect(food_x, food_y, snake_size, snake_size);
+        }
+
+        // Handle keyboard input
+        document.addEventListener('keydown', function(event) {
+            if (gameOver || gamePaused) return;
+
+            switch(event.key) {
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    velocity_x = 10;
+                    velocity_y = 0;
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    velocity_x = -10;
+                    velocity_y = 0;
+                    break;
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    velocity_x = 0;
+                    velocity_y = -10;
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    velocity_x = 0;
+                    velocity_y = 10;
+                    break;
+                case ' ':
+                    event.preventDefault();
+                    pauseGame();
+                    break;
+            }
+        });
+
+        // Game control functions
+        function startGame() {
+            if (gameOver) {
+                resetGame();
+            }
+            
+            gamePaused = false;
+            gameOver = false;
+            gameStatusElement.textContent = 'Playing';
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+            
+            // Start game loop
+            gameInterval = setInterval(gameLoop, 1000 / fps);
+        }
+
+        function pauseGame() {
+            if (gamePaused) {
+                // Resume
+                gamePaused = false;
+                gameStatusElement.textContent = 'Playing';
+                pauseBtn.textContent = 'Pause';
+                gameInterval = setInterval(gameLoop, 1000 / fps);
+            } else {
+                // Pause
+                gamePaused = true;
+                gameStatusElement.textContent = 'Paused';
+                pauseBtn.textContent = 'Resume';
+                clearInterval(gameInterval);
+            }
+        }
+
+        function resetGame() {
+            // Stop game loop
+            clearInterval(gameInterval);
+            
+            // Reset game variables
+            gameOver = false;
+            gamePaused = false;
+            snake_x = 45;
+            snake_y = 55;
+            velocity_x = 0;
+            velocity_y = 0;
+            score = 0;
+            
+            // Reset food position
+            food_x = Math.floor(Math.random() * (SCREEN_WIDTH - snake_size));
+            food_y = Math.floor(Math.random() * (SCREEN_HEIGHT - snake_size));
+            
+            // Reset UI
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            pauseBtn.textContent = 'Pause';
+            gameStatusElement.textContent = 'Ready';
+            
+            // Redraw initial state
+            initGame();
+        }
+
+        function updateUI() {
+            scoreElement.textContent = score;
+        }
+
+        // Initialize the game when page loads
+        window.onload = function() {
+            initGame();
+        };
+    </script>
+</body>
+</html>
